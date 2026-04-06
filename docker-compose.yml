@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  angebote:
+    build: .
+    container_name: angebote-finder
+    restart: unless-stopped
+    ports:
+      - "8080:80"   # Ändern auf z.B. "80:80" wenn du keinen Reverse Proxy nutzt
+    labels:
+      # Traefik Labels (optional, auskommentieren falls kein Traefik)
+      - "traefik.enable=true"
+      - "traefik.http.routers.angebote.rule=Host(`angebote.deinedomain.de`)"
+      - "traefik.http.routers.angebote.entrypoints=websecure"
+      - "traefik.http.routers.angebote.tls.certresolver=letsencrypt"

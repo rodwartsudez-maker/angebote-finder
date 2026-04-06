@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d0d0d" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Angebote Finder</title>
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0d0d0d;
+      --surface: #141414;
+      --surface2: #1c1c1c;
+      --border: #2a2a2a;
+      --accent: #ff3d3d;
+      --accent2: #ff8c00;
+      --text: #f0f0f0;
+      --muted: #666;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Barlow', sans-serif;
+      overflow: hidden;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      max-width: 480px;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    /* ── TOP BAR ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px 10px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      gap: 10px;
+    }
+
+    .topbar-logo {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .topbar-logo span { color: var(--accent); }
+
+    .search-wrap {
+      flex: 1;
+      display: flex;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      align-items: center;
+      padding: 0 12px;
+      gap: 8px;
+      transition: border-color .2s;
+    }
+    .search-wrap:focus-within { border-color: var(--accent); }
+    .search-wrap input {
+      flex: 1;
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: 'Barlow', sans-serif;
+      font-size: 14px;
+      padding: 9px 0;
+    }
+    .search-wrap input::placeholder { color: var(--muted); }
+    .search-wrap button {
+      background: none; border: none; cursor: pointer;
+      color: var(--accent); font-size: 16px; padding: 4px;
+    }
+
+    /* ── MARKT CHIPS ── */
+    .markt-scroll {
+      display: flex;
+      gap: 8px;
+      padding: 10px 16px;
+      overflow-x: auto;
+      flex-shrink: 0;
+      scrollbar-width: none;
+      background: var(--bg);
+    }
+    .markt-scroll::-webkit-scrollbar { display: none; }
+
+    .chip {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all .15s;
+      flex-shrink: 0;
+    }
+    .chip:hover { border-color: #555; color: var(--text); }
+    .chip.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    /* ── CONTENT AREA ── */
+    .content {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* BROWSER TAB */
+    #tab-browser {
+      width: 100%; height: 100%;
+      display: flex; flex-direction: column;
+    }
+
+    .iframe-loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      z-index: 5;
+      gap: 16px;
+      pointer-events: none;
+      transition: opacity .3s;
+    }
+    .iframe-loading.hidden { opacity: 0; }
+
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .iframe-loading p {
+      color: var(--muted);
+      font-size: 13px;
+      font-family: 'Barlow Condensed', sans-serif;
+      letter-spacing: 1px;
+    }
+
+    iframe {
+      width: 100%; height: 100%;
+      border: none;
+      flex: 1;
+    }
+
+    /* FAVORITEN TAB */
+    #tab-favoriten {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+    #tab-favoriten.active { display: flex; }
+
+    .fav-header {
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .fav-header h2 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
+    .btn-add {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      padding: 7px 16px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-add:hover { background: #cc2222; }
+
+    .add-form {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .add-form.open { display: flex; }
+
+    .add-form input {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'Barlow', sans-serif;
+      font-size: 14px;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .add-form input:focus { border-color: var(--accent); }
+
+    .kat-chips {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .kat-chips::-webkit-scrollbar { display: none; }
+
+    .kat-chip {
+      padding: 5px 12px;
+      border-radius: 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all .15s;
+    }
+    .kat-chip.active { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+
+    .btn-save {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 11px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      cursor: pointer;
+    }
+
+    .filter-bar {
+      display: flex;
+      gap: 6px;
+      padding: 10px 16px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .filter-bar::-webkit-scrollbar { display: none; }
+
+    .fav-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 40px;
+      text-align: center;
+    }
+    .empty-state .icon { font-size: 56px; }
+    .empty-state h3 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+    }
+    .empty-state p { color: var(--muted); font-size: 14px; line-height: 1.5; }
+
+    .artikel-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      animation: fadeUp .2s ease;
+    }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+    .artikel-info { flex: 1; min-width: 0; }
+    .artikel-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .artikel-kat {
+      display: inline-block;
+      margin-top: 4px;
+      background: var(--surface2);
+      color: var(--accent2);
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      font-family: 'Barlow Condensed', sans-serif;
+      letter-spacing: 0.5px;
+    }
+
+    .card-actions { display: flex; gap: 6px; }
+    .card-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .card-btn:hover { border-color: var(--accent); }
+
+    /* MÄRKTE TAB */
+    #tab-maerkte {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+    #tab-maerkte.active { display: flex; }
+
+    .markte-header {
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .markte-header h2 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
+
+    .markte-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .markt-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .markt-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .markt-info { flex: 1; min-width: 0; }
+    .markt-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      font-weight: 800;
+    }
+    .markt-url {
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .toggle {
+      position: relative;
+      width: 44px; height: 24px;
+      flex-shrink: 0;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      background: var(--border);
+      border-radius: 24px;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .toggle-slider::after {
+      content: '';
+      position: absolute;
+      width: 18px; height: 18px;
+      background: #888;
+      border-radius: 50%;
+      top: 3px; left: 3px;
+      transition: all .2s;
+    }
+    .toggle input:checked + .toggle-slider { background: var(--accent); }
+    .toggle input:checked + .toggle-slider::after {
+      transform: translateX(20px);
+      background: #fff;
+    }
+
+    .markt-add-form {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .markt-add-form.open { display: flex; }
+    .markt-add-form input {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'Barlow', sans-serif;
+      font-size: 14px;
+      padding: 10px 14px;
+      outline: none;
+    }
+    .markt-add-form input:focus { border-color: var(--accent); }
+
+    /* BOTTOM NAV */
+    .bottom-nav {
+      display: flex;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .nav-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 4px 12px;
+      gap: 4px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      transition: color .15s;
+      position: relative;
+    }
+    .nav-btn .nav-icon { font-size: 22px; }
+    .nav-btn.active { color: var(--accent); }
+    .nav-btn.active::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 20%; right: 20%;
+      height: 2px;
+      background: var(--accent);
+      border-radius: 0 0 2px 2px;
+    }
+
+    /* TOAST */
+    .toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 20px;
+      border-radius: 24px;
+      font-size: 13px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      opacity: 0;
+      transition: all .3s;
+      z-index: 100;
+      white-space: nowrap;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="topbar-logo">ANGE<span>BOTE</span></div>
+    <div class="search-wrap" id="searchWrap">
+      <span>🔍</span>
+      <input id="searchInput" type="text" placeholder="Artikel suchen..." />
+      <button onclick="doSearch()">→</button>
+    </div>
+  </div>
+
+  <!-- MARKT CHIPS (nur im Browser-Tab) -->
+  <div class="markt-scroll" id="marktChips"></div>
+
+  <!-- MAIN CONTENT -->
+  <div class="content">
+
+    <!-- BROWSER TAB -->
+    <div id="tab-browser" style="position:relative;">
+      <div class="iframe-loading" id="iframeLoading">
+        <div class="spinner"></div>
+        <p>ANGEBOTE WERDEN GELADEN</p>
+      </div>
+      <iframe id="mainFrame" src="" title="Angebote"></iframe>
+    </div>
+
+    <!-- FAVORITEN TAB -->
+    <div id="tab-favoriten">
+      <div class="fav-header">
+        <h2>⭐ MEINE ARTIKEL</h2>
+        <button class="btn-add" onclick="toggleAddForm()">+ Artikel</button>
+      </div>
+
+      <div class="add-form" id="addForm">
+        <input id="newArtikelName" type="text" placeholder="z.B. Milch, Fernseher, Hundefutter..." />
+        <div class="kat-chips" id="katChips"></div>
+        <button class="btn-save" onclick="saveArtikel()">SPEICHERN</button>
+      </div>
+
+      <div class="filter-bar" id="filterBar"></div>
+
+      <div class="fav-list" id="favList"></div>
+    </div>
+
+    <!-- MÄRKTE TAB -->
+    <div id="tab-maerkte">
+      <div class="markte-header">
+        <h2>🏪 MÄRKTE</h2>
+        <button class="btn-add" onclick="toggleMarktForm()">+ Markt</button>
+      </div>
+
+      <div class="markt-add-form" id="marktAddForm">
+        <input id="newMarktName" type="text" placeholder="Name z.B. Kaufland" />
+        <input id="newMarktUrl" type="url" placeholder="URL z.B. https://kaufland.de/angebote" />
+        <button class="btn-save" onclick="saveMarkt()">MARKT HINZUFÜGEN</button>
+      </div>
+
+      <div class="markte-list" id="markteList"></div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <button class="nav-btn active" id="nav-browser" onclick="switchTab('browser')">
+      <span class="nav-icon">🏷️</span>
+      Angebote
+    </button>
+    <button class="nav-btn" id="nav-favoriten" onclick="switchTab('favoriten')">
+      <span class="nav-icon">⭐</span>
+      Meine Liste
+    </button>
+    <button class="nav-btn" id="nav-maerkte" onclick="switchTab('maerkte')">
+      <span class="nav-icon">🏪</span>
+      Märkte
+    </button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STATE ──
+const DEFAULT_MAERKTE = [
+  { id:'kaufda',  name:'Kaufda',  url:'https://www.kaufda.de',                          farbe:'#FF6B00', aktiv:true  },
+  { id:'lidl',    name:'Lidl',    url:'https://www.lidl.de/de/angebote.htm',            farbe:'#0050AA', aktiv:true  },
+  { id:'aldi',    name:'Aldi',    url:'https://www.aldi-nord.de/angebote.html',         farbe:'#00529B', aktiv:true  },
+  { id:'edeka',   name:'Edeka',   url:'https://www.edeka.de/angebote/',                 farbe:'#FFD700', aktiv:true  },
+  { id:'netto',   name:'Netto',   url:'https://www.netto-online.de/angebote/',          farbe:'#E2001A', aktiv:true  },
+  { id:'rewe',    name:'Rewe',    url:'https://www.rewe.de/angebote/',                  farbe:'#CC0000', aktiv:false },
+  { id:'penny',   name:'Penny',   url:'https://www.penny.de/angebote',                 farbe:'#E2001A', aktiv:false },
+];
+
+const KATEGORIEN = ['Lebensmittel','Getränke','Reinigung','Elektronik','Haushalt','Kleidung','Drogerie','Tierfutter','Sonstiges'];
+
+let state = {
+  maerkte: JSON.parse(localStorage.getItem('maerkte') || 'null') || DEFAULT_MAERKTE,
+  favoriten: JSON.parse(localStorage.getItem('favoriten') || '[]'),
+  aktiverTab: 'browser',
+  aktiverMarktUrl: 'https://www.kaufda.de',
+  gewählteKat: 'Lebensmittel',
+  filterKat: 'Alle',
+};
+
+function save() {
+  localStorage.setItem('maerkte', JSON.stringify(state.maerkte));
+  localStorage.setItem('favoriten', JSON.stringify(state.favoriten));
+}
+
+// ── INIT ──
+document.addEventListener('DOMContentLoaded', () => {
+  renderMarktChips();
+  renderMarkteList();
+  renderFavoriten();
+  renderKatChips();
+  renderFilterBar();
+  loadUrl(state.aktiverMarktUrl);
+
+  document.getElementById('searchInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doSearch();
+  });
+});
+
+// ── NAVIGATION ──
+function switchTab(tab) {
+  state.aktiverTab = tab;
+  ['browser','favoriten','maerkte'].forEach(t => {
+    document.getElementById(`tab-${t}`).classList.toggle('active', t !== 'browser' && t === tab);
+    document.getElementById(`nav-${t}`).classList.toggle('active', t === tab);
+  });
+  document.getElementById('tab-browser').style.display = tab === 'browser' ? 'flex' : 'none';
+  document.getElementById('marktChips').style.display = tab === 'browser' ? 'flex' : 'none';
+  document.querySelector('.search-wrap').style.display = tab === 'browser' ? 'flex' : 'none';
+}
+
+// ── IFRAME / BROWSER ──
+function loadUrl(url) {
+  state.aktiverMarktUrl = url;
+  const frame = document.getElementById('mainFrame');
+  const loading = document.getElementById('iframeLoading');
+  loading.classList.remove('hidden');
+  frame.src = url;
+  frame.onload = () => loading.classList.add('hidden');
+  renderMarktChips();
+}
+
+function doSearch() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (!q) return;
+  loadUrl(`https://www.kaufda.de/suche?q=${encodeURIComponent(q)}`);
+  switchTab('browser');
+  showToast(`🔍 Suche nach "${q}"`);
+}
+
+// ── MARKT CHIPS ──
+function renderMarktChips() {
+  const wrap = document.getElementById('marktChips');
+  const aktive = state.maerkte.filter(m => m.aktiv);
+  wrap.innerHTML = aktive.map(m => `
+    <div class="chip ${state.aktiverMarktUrl.includes(new URL(m.url).hostname) ? 'active' : ''}"
+         onclick="loadUrl('${m.url}')"
+         style="${state.aktiverMarktUrl.includes(new URL(m.url).hostname) ? `background:${m.farbe};border-color:${m.farbe}` : ''}">
+      ${m.name}
+    </div>
+  `).join('');
+}
+
+// ── MÄRKTE LISTE ──
+function renderMarkteList() {
+  const list = document.getElementById('markteList');
+  list.innerHTML = state.maerkte.map(m => `
+    <div class="markt-card">
+      <div class="markt-dot" style="background:${m.farbe}"></div>
+      <div class="markt-info">
+        <div class="markt-name">${m.name}</div>
+        <div class="markt-url">${m.url}</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" ${m.aktiv ? 'checked' : ''} onchange="toggleMarkt('${m.id}')" />
+        <span class="toggle-slider"></span>
+      </label>
+      <button class="card-btn" onclick="deleteMarkt('${m.id}')">🗑️</button>
+    </div>
+  `).join('');
+}
+
+function toggleMarkt(id) {
+  state.maerkte = state.maerkte.map(m => m.id === id ? {...m, aktiv: !m.aktiv} : m);
+  save(); renderMarkteList(); renderMarktChips();
+}
+
+function deleteMarkt(id) {
+  if (!confirm('Markt löschen?')) return;
+  state.maerkte = state.maerkte.filter(m => m.id !== id);
+  save(); renderMarkteList(); renderMarktChips();
+}
+
+function toggleMarktForm() {
+  document.getElementById('marktAddForm').classList.toggle('open');
+}
+
+function saveMarkt() {
+  const name = document.getElementById('newMarktName').value.trim();
+  let url = document.getElementById('newMarktUrl').value.trim();
+  if (!name || !url) return;
+  if (!url.startsWith('http')) url = 'https://' + url;
+  state.maerkte.push({ id: Date.now().toString(), name, url, farbe: '#e94560', aktiv: true });
+  save(); renderMarkteList(); renderMarktChips();
+  document.getElementById('newMarktName').value = '';
+  document.getElementById('newMarktUrl').value = '';
+  document.getElementById('marktAddForm').classList.remove('open');
+  showToast(`✅ ${name} hinzugefügt`);
+}
+
+// ── FAVORITEN ──
+function renderFavoriten() {
+  const list = document.getElementById('favList');
+  const filtered = state.filterKat === 'Alle'
+    ? state.favoriten
+    : state.favoriten.filter(a => a.kategorie === state.filterKat);
+
+  if (filtered.length === 0) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">🛒</div>
+        <h3>Noch keine Artikel</h3>
+        <p>Tippe "+ Artikel" um deine Wunschliste zu füllen.<br/>Du wirst dann direkt benachrichtigt, wenn ein Artikel im Angebot ist.</p>
+      </div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(a => `
+    <div class="artikel-card">
+      <div class="artikel-info">
+        <div class="artikel-name">${a.name}</div>
+        <span class="artikel-kat">${a.kategorie}</span>
+      </div>
+      <div class="card-actions">
+        <button class="card-btn" title="Im Angebot suchen" onclick="searchArtikel('${a.name}')">🔍</button>
+        <button class="card-btn" title="Löschen" onclick="deleteArtikel('${a.id}')">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderKatChips() {
+  document.getElementById('katChips').innerHTML = KATEGORIEN.map(k => `
+    <div class="kat-chip ${state.gewählteKat === k ? 'active' : ''}" onclick="selectKat('${k}')">${k}</div>
+  `).join('');
+}
+
+function renderFilterBar() {
+  document.getElementById('filterBar').innerHTML = ['Alle', ...KATEGORIEN].map(k => `
+    <div class="chip ${state.filterKat === k ? 'active' : ''}" onclick="setFilter('${k}')">${k}</div>
+  `).join('');
+}
+
+function selectKat(k) {
+  state.gewählteKat = k;
+  renderKatChips();
+}
+
+function setFilter(k) {
+  state.filterKat = k;
+  renderFilterBar();
+  renderFavoriten();
+}
+
+function toggleAddForm() {
+  document.getElementById('addForm').classList.toggle('open');
+  if (document.getElementById('addForm').classList.contains('open')) {
+    document.getElementById('newArtikelName').focus();
+  }
+}
+
+function saveArtikel() {
+  const name = document.getElementById('newArtikelName').value.trim();
+  if (!name) return;
+  state.favoriten.push({ id: Date.now().toString(), name, kategorie: state.gewählteKat });
+  save(); renderFavoriten();
+  document.getElementById('newArtikelName').value = '';
+  document.getElementById('addForm').classList.remove('open');
+  showToast(`✅ "${name}" gespeichert`);
+}
+
+function deleteArtikel(id) {
+  state.favoriten = state.favoriten.filter(a => a.id !== id);
+  save(); renderFavoriten();
+}
+
+function searchArtikel(name) {
+  document.getElementById('searchInput').value = name;
+  loadUrl(`https://www.kaufda.de/suche?q=${encodeURIComponent(name)}`);
+  switchTab('browser');
+  showToast(`🔍 Suche nach "${name}"`);
+}
+
+// ── TOAST ──
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── SERVICE WORKER REGISTRIERUNG ──
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
