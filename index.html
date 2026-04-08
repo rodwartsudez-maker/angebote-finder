@@ -265,16 +265,27 @@ async function ladeAngebote(query='') {
   document.getElementById('resultsGrid').innerHTML = `<div class="state-box" style="grid-column:1/-1;"><div class="spinner"></div><p>Angebote werden geladen...</p></div>`;
   document.getElementById('resultsCount').textContent = '–';
 
-  const aktive = S.maerkte.filter(m => m.aktiv);
-  const retailer = S.aktiverMarkt ? `&retailer=${S.aktiverMarkt}` : aktive.map(m=>`&retailer=${m.id}`).join('');
-  const q = query || 'milch fleisch brot käse obst gemüse';
-  const url = `${API}/offers/search?as=web&limit=48&offset=0&q=${encodeURIComponent(q)}&zipCode=${S.plz}${retailer}`;
+  // Marktguru kennt keinen retailer URL-Parameter – wir laden alle Ergebnisse
+  // und filtern dann clientseitig nach Marktname
+  const q = query || 'angebot';
+  const url = `${API}/offers/search?as=web&limit=100&offset=0&q=${encodeURIComponent(q)}&zipCode=${S.plz}`;
 
   try {
     const res = await fetch(url, { headers: HDR });
-    if (!res.ok) throw new Error();
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    S.angebote = data.results || [];
+    const alle = data.results || [];
+
+    // Clientseitig nach aktiven Märkten filtern (nach advertisers[0].name)
+    const aktiveMaerkte = S.maerkte.filter(m => m.aktiv).map(m => m.name.toLowerCase());
+    S.angebote = alle.filter(a => {
+      const marktName = (a.advertisers?.[0]?.name || '').toLowerCase();
+      return aktiveMaerkte.some(m => marktName.includes(m) || m.includes(marktName.split(' ')[0]));
+    });
+
+    // Falls kein Treffer durch Filter: alle anzeigen
+    if (S.angebote.length === 0 && alle.length > 0) S.angebote = alle;
+
     renderAngebote();
   } catch(e) {
     document.getElementById('resultsGrid').innerHTML = `<div class="state-box" style="grid-column:1/-1;"><div class="icon">⚠️</div><h3>Fehler beim Laden</h3><p>Bitte Internetverbindung prüfen.</p></div>`;
@@ -283,7 +294,7 @@ async function ladeAngebote(query='') {
 
 function renderAngebote() {
   const grid = document.getElementById('resultsGrid');
-  const list = [...S.angebote].sort((a,b) => S.sortAsc ? (a.price||0)-(b.price||0) : (b.price||0)-(a.price||0));
+  const list = getGefilterteAngebote().sort((a,b) => S.sortAsc ? (a.price||0)-(b.price||0) : (b.price||0)-(a.price||0));
   document.getElementById('resultsCount').textContent = `${list.length} ANGEBOTE`;
 
   if (!list.length) {
@@ -329,7 +340,18 @@ function renderMarktChips() {
     aktive.map(m => `<div class="chip ${S.aktiverMarkt===m.id?'active':''}" style="${S.aktiverMarkt===m.id?`background:${m.farbe};border-color:${m.farbe}`:''}" onclick="setMarkt('${m.id}')">${m.name}</div>`).join('');
 }
 
-function setMarkt(id) { S.aktiverMarkt = id; renderMarktChips(); if (S.plz) ladeAngebote(document.getElementById('searchInput').value.trim()); }
+function setMarkt(id) { S.aktiverMarkt = id; renderMarktChips(); renderAngebote(); }
+
+function getGefilterteAngebote() {
+  if (!S.aktiverMarkt) return S.angebote;
+  const markt = S.maerkte.find(m => m.id === S.aktiverMarkt);
+  if (!markt) return S.angebote;
+  const suchname = markt.name.toLowerCase();
+  return S.angebote.filter(a => {
+    const an = (a.advertisers?.[0]?.name || '').toLowerCase();
+    return an.includes(suchname) || suchname.includes(an.split(' ')[0]);
+  });
+}
 
 function renderMarkteList() {
   document.getElementById('markteList').innerHTML = S.maerkte.map(m =>
